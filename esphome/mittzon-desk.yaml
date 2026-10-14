@@ -1,0 +1,89 @@
+esphome:
+  name: mittzon-desk
+  friendly_name: Mittzon Desk
+
+esp8266:
+  board: d1_mini
+
+# Connects to your local network
+wifi:
+  ssid: "YOUR_SSID"
+  password: "YOUR_PASSWORD"
+
+ota:
+  platform: esphome
+
+api:
+
+logger:
+  level: DEBUG
+
+# 1. Define UART
+uart:
+  id: uart_bus
+  tx_pin: GPIO13  # D7
+  rx_pin: GPIO12  # D6
+  baud_rate: 9600
+
+# 2. Scripts referencing uart_bus
+script:
+  - id: send_jiecang_cmd
+    mode: restart
+    parameters:
+      cmd_byte: int
+    then:
+      - lambda: |-
+          std::vector<uint8_t> wake_frame = {0xF1, 0xF1, 0x00, 0x00, 0x00, 0x7E};
+          id(uart_bus).write_array(wake_frame.data(), wake_frame.size());
+      - delay: 80ms
+      - lambda: |-
+          uint8_t c = (uint8_t)cmd_byte;
+          std::vector<uint8_t> cmd_frame = {0xF1, 0xF1, c, 0x00, c, 0x7E};
+          id(uart_bus).write_array(cmd_frame.data(), cmd_frame.size());
+
+# 3. Buttons that trigger the script
+button:
+  - platform: template
+    name: "Desk Preset 1 (Sitting)"
+    id: btn_desk_preset_1
+    icon: "mdi:seat-passenger"
+    on_press:
+      - script.execute:
+          id: send_jiecang_cmd
+          cmd_byte: 0x05
+
+  - platform: template
+    name: "Desk Preset 2 (Standing)"
+    id: btn_desk_preset_2
+    icon: "mdi:human-handsdown"
+    on_press:
+      - script.execute:
+          id: send_jiecang_cmd
+          cmd_byte: 0x06
+
+  - platform: template
+    name: "Desk Up"
+    id: btn_desk_up
+    icon: "mdi:arrow-up-bold"
+    on_press:
+      - script.execute:
+          id: send_jiecang_cmd
+          cmd_byte: 0x01
+
+  - platform: template
+    name: "Desk Down"
+    id: btn_desk_down
+    icon: "mdi:arrow-down-bold"
+    on_press:
+      - script.execute:
+          id: send_jiecang_cmd
+          cmd_byte: 0x02
+
+  - platform: template
+    name: "Desk Stop"
+    id: btn_desk_stop
+    icon: "mdi:stop"
+    on_press:
+      - script.execute:
+          id: send_jiecang_cmd
+          cmd_byte: 0x2B
